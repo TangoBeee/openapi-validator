@@ -21,7 +21,7 @@ app.post('/api/openapi-validator', async (req, res) => {
     if(!schemaObject) return res.status(400).send(false);
 
     const api = await SwaggerParser.validate(schemaObject);
-    res.status(200).send(true);
+    res.status(200).send(api);
   } catch (err) {
     res.status(500).send('Internal Server Error');
   }
