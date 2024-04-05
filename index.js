@@ -7,7 +7,7 @@ const app = express();
 const port = 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({limit: '50mb'}));
 
 app.post('/api/openapi-validator', async (req, res) => {
   try {
@@ -18,12 +18,26 @@ app.post('/api/openapi-validator', async (req, res) => {
 
     const schemaObject = handleParse(schema);
 
-    if(!schemaObject) return res.status(400).send(false);
+    if(schemaObject && schemaObject.error) {
+      return res.status(400).json(schemaObject);
+    }
+
+    if(!schemaObject || !(schemaObject.openapi || schemaObject.swagger)) {
+      return res.status(400).json({
+        "error": "Please enter a valid OpenAPI schema. (JSON or YAML)"
+      });
+    }
+
+    if(schemaObject.openapi && schemaObject.openapi === "3.1.0") {
+      return res.status(400).json({
+        "error": "Right now, only versions 2.X and 3.0.X of OpenAPI are supported."
+      });
+    }
 
     const api = await SwaggerParser.validate(schemaObject);
-    res.status(200).send(api);
+    return res.status(200).send(api);
   } catch (err) {
-    res.status(500).send('Internal Server Error');
+    return res.status(500).json({"error": err.message});
   }
 });
 
@@ -36,7 +50,7 @@ const handleParse = (value) => {
         const parsedData = yaml.load(value);
         return parsedData;
       } catch (yamlError) {
-        return null;
+        return {"error": yamlError.reason};
       }
     }
 };
